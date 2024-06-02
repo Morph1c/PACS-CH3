@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
 
     double norm;
     double res_k;
-    size_t it_max = 1000;
+    size_t it_max = 100000;
     size_t c = 0;
     double tol = 1e-5;
 
@@ -54,6 +54,7 @@ int main(int argc, char** argv) {
         norm = 0.0;
         res_k = 0.0;
 
+        //#pragma omp parallel for reduction(+:norm) collapse(2)
         for (int i = start_pos; i < end_pos; ++i) {
              // every rank modifies the first row, except the first rank
                                               // since in that case are boundary conditions
