@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
     }   
 
     std::vector<std::vector<double>> U(n, std::vector<double>(n, 0.0)); // Initialize U with zeros
+
     std::vector<std::vector<double>> U_exact(n, std::vector<double>(n, 0.0)); // Initialize U with zeros
 
     // Set boundary conditions
@@ -41,8 +42,8 @@ int main(int argc, char** argv) {
 
     double norm;
     double res_k;
-    size_t it = 0;
     size_t it_max = 1000;
+    size_t c = 0;
     double tol = 1e-5;
 
     int start_pos = (rank == 0) ? 1 : rank * rows_per_proc;
@@ -78,7 +79,7 @@ int main(int argc, char** argv) {
         }
         
 
-        // Receive the last row from the previous rank and send the first row to the previous rank
+     // Receive the last row from the previous rank and send the first row to the previous rank
         if (rank > 0) {
             MPI_Isend(&U[rank * rows_per_proc][0], n, MPI_DOUBLE, rank - 1, 1, MPI_COMM_WORLD, &requests[request_count++]);
             MPI_Irecv(&U[rank * rows_per_proc - 1][0], n, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, &requests[request_count++]);
@@ -86,34 +87,45 @@ int main(int argc, char** argv) {
 
         //MPI_Waitall(request_count, requests, MPI_STATUSES_IGNORE);
 
-        MPI_Barrier(MPI_COMM_WORLD);  // Add this line  
-        std::cout << "Rank: " << rank << " norm: " << norm << " iter " << it << std::endl;
+        MPI_Barrier(MPI_COMM_WORLD);  // Add this line
+
+        //std::cout << "Rank: " << rank << " norm: " << norm << " iter " << it << std::endl;
         MPI_Allreduce(&norm, &res_k, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
         if (std::sqrt(h*res_k) < tol) {
             break;
         }
+        c++;
+    }
+    std::cout << "Finished, rank " << rank << " res " << res_k << " iters: " << c << std::endl;
+
+    std::vector<double> U_flat(rows_per_proc * n);
+    for(int i = 0; i < rows_per_proc; i++) {
+        for(int j = 0; j < n; j++) {
+            U_flat[i * n + j] = U[i + start_pos][j];
+        }
     }
 
-    
-    std::cout << "Finished, rank " << rank << " res " << res_k << " iters: " << it << std::endl;
+    std::vector<double> U_final_flat;
 
-    double* U_all = new double[n * n];
-    MPI_Allgather(&U[rank * rows_per_proc][0], rows_per_proc * n, MPI_DOUBLE, U_all, rows_per_proc * n, MPI_DOUBLE, MPI_COMM_WORLD);
+
     if (rank == 0) {
-        double max_err = 0.0;
-        for (int i = 1; i < n - 1; i++) {
-            for(int j = 1; j < n - 1; j++) {
-                U[i][j] = U_all[i * n + j];
-                U_exact[i][j] = u_ex_fun(i * h, j * h);
-                max_err = std::max(max_err, std::abs(U[i][j] - U_exact[i][j]));
+        U_final_flat.resize(n * n);
+    }
+
+    MPI_Gather(U_flat.data(), rows_per_proc * n, MPI_DOUBLE, U_final_flat.data(), rows_per_proc * n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    if (rank == 0) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                U[i][j] = U_final_flat[i * n + j];
             }
         }
+
         generateVTKFile("laplace_approx.vtk", U, n - 1, n - 1, h, h);
         generateVTKFile("laplace_exact.vtk", U_exact, n - 1, n - 1, h, h);
-
-        std::cout << "Max error: " << max_err << std::endl;
     }
+
     
     MPI_Finalize();
 
