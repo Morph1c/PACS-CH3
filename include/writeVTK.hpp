@@ -4,10 +4,11 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <Eigen/Dense>
 
 // generates a STRUCTURES VTK file with a scalar field
 void generateVTKFile(const std::string & filename, 
-                     const std::vector<std::vector<double>> & scalarField, 
+                     const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& scalarField, 
                      int nx, int ny, double hx, double hy) {
 
     // opens the file
@@ -40,7 +41,7 @@ void generateVTKFile(const std::string & filename,
     // Write vector field data
     for (int j = 0; j < ny+1; j++) {
         for (int i = 0; i < nx+1; i++) {
-            vtkFile <<  scalarField[i][j] << "\n";
+            vtkFile <<  scalarField(i, j) << "\n";
         }
     }
 

@@ -1,5 +1,8 @@
 #include <iostream>
-#include "../src/laplaceSolver.hpp"
+#include "../include/laplaceSolver.hpp"
+
+
+using namespace parallel_solver;
 
 int main(int argc, char** argv) {
     int n = atoi(argv[1]); // Number of grid points
