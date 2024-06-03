@@ -21,7 +21,7 @@ run the make:
 ```shell
 make 
 ```
-Then run the code using <n> processors and n grid points:
+Then run the code using p processors and n grid points:
 ```shell
-mpirun -np <n> ./test n
+mpirun -np <p> ./test n
 ```
