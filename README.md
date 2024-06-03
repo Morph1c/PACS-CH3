@@ -9,3 +9,19 @@ This project implements a matrix-free parallel solver for the Laplace equation u
 - Flexible boundary conditions: The solver can handle any function as the boundary condition.
 
 ## Usage
+Clone the repository:
+```shell
+git clone git@github.com:Morph1c/PACS-CH2.git 
+```
+Then go to the src directory
+```shell
+cd src
+```
+run the make:
+```shell
+make 
+```
+Then run the code using <n> processors and n grid points:
+```shell
+mpirun -np <n> ./test n
+```
