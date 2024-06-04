@@ -4,68 +4,69 @@
 
 namespace parallel_solver{
 
-double LaplaceSolver::local_solver_iter(int start_pos, int end_pos){
+double LaplaceSolver::local_solver_iter(int rank){
     double norm = 0.0;
-    
     //#pragma omp parallel for reduction(+:norm) collapse(2)
-    for (int i = start_pos; i < end_pos; ++i) {
+    for (int i = 1; i < local_U.rows() - 1; ++i) {
              // every rank modifies the first row, except the first rank
                                               // since in that case are boundary conditions
                                               // moreover each rank doesn't modify the last row
             for (int j = 1; j < n - 1; ++j) {
-                double temp = U(i, j);
-                U(i, j) = 0.25 * (U(i-1, j) + U(i+1, j) + U(i, j-1) + U(i, j+1) + h*h*f(i*h, j*h));
-                norm += (U(i, j) - temp) * (U(i, j) - temp);
+                double temp = local_U(i, j);
+                local_U(i, j) = 0.25 * (local_U(i-1, j) + local_U(i+1, j) + local_U(i, j-1) + local_U(i, j+1) + h*h*local_F(i, j));
+                norm += (local_U(i, j) - temp) * (local_U(i, j) - temp);
             }
     }
     
-    return norm;
+    return sqrt(h*norm);
 }
 
 
 double LaplaceSolver::parallel_iter(int rank, int size){
-        // The code for one iteration of Jacobi goes here
-
-        rows_per_proc = n / size;
-
-        if (n % size != 0) {
-            std::cerr << "The number of rows must be divisible by the number of processes" << std::endl;
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        } 
-    
-        double res_k;
-        double norm;
-        int start_pos = (rank == 0) ? 1 : rank * rows_per_proc;
-        int end_pos = (rank == size - 1) ? n - 1 : (rank + 1) * rows_per_proc;
-
-
-        res_k = 0.0;
-        norm = local_solver_iter(start_pos, end_pos);
+        // The code for one iteration of Jacobi goes here    
+        double error;
+     
+        error = local_solver_iter(rank);
         
         // Send the last row to the next rank
         // Send the last row to the next rank and receive the first row from the next rank
-        MPI_Request requests[4];
-        int request_count = 0;
-
         if (rank < size - 1) {
-            MPI_Isend(&U((rank + 1) * rows_per_proc - 1, 0), n, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, &requests[request_count++]);
-            MPI_Irecv(&U((rank + 1) * rows_per_proc, 0), n, MPI_DOUBLE, rank + 1, 1, MPI_COMM_WORLD, &requests[request_count++]);
+            MPI_Request send_request;
+            MPI_Isend(local_U.row(local_U.rows() - 2).data(), n, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, &send_request);
+                
+            Eigen::VectorXd new_last_row(n);
+            MPI_Request recv_request;
+            MPI_Irecv(new_last_row.data(), n, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, &recv_request);
+                
+            MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
+            local_U.row(local_U.rows() - 1) = new_last_row;
+                
+            MPI_Wait(&send_request, MPI_STATUS_IGNORE);
         }
         
 
      // Receive the last row from the previous rank and send the first row to the previous rank
         if (rank > 0) {
-            MPI_Isend(&U(rank * rows_per_proc, 0), n, MPI_DOUBLE, rank - 1, 1, MPI_COMM_WORLD, &requests[request_count++]);
-            MPI_Irecv(&U(rank * rows_per_proc - 1, 0), n, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, &requests[request_count++]);
+            Eigen::VectorXd new_first_row(n);
+            MPI_Request recv_request;
+            MPI_Irecv(new_first_row.data(), n, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, &recv_request);
+            
+            MPI_Wait(&recv_request, MPI_STATUS_IGNORE);
+            local_U.row(0) = new_first_row;
+
+            MPI_Request send_request;
+            MPI_Isend(local_U.row(1).data(), n, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, &send_request);
+            
+            MPI_Wait(&send_request, MPI_STATUS_IGNORE);
+    
         }
 
         //MPI_Waitall(request_count, requests, MPI_STATUSES_IGNORE);
 
         MPI_Barrier(MPI_COMM_WORLD);  // Add this line
-        MPI_Allreduce(&norm, &res_k, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        //MPI_Allreduce(&norm, &res_k, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); do this if you want to compute average residual
 
-    
-        return res_k;
+        return error;
 
 }
 
@@ -79,23 +80,37 @@ void LaplaceSolver::solve(int argc, char** argv) {
         MPI_Comm_size(MPI_COMM_WORLD, &size);
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-        for (int i = 0; i < n; ++i) {
-            U(0, i) = U(i, 0) = U(n-1, i) = U(i, n-1) = 0.0;
-            //U_exact[0][i] = U_exact[i][0] = U_exact[n-1][i] = U_exact[i][n-1] = 0.0;
+        rows_per_proc = n / size; 
+        rows_per_rank = std::vector<int>(size, rows_per_proc);
+        real_start_pos = std::vector<int>(size, 0.0);
+
+        // then add 1 to each rank until reach n
+        for (int i = 0; i < n % size; i++) {
+            rows_per_rank[i] = rows_per_proc + 1;
         }
+
+        for(int i = 1; i < size; i++) {
+            real_start_pos[i] = real_start_pos[i - 1] + rows_per_rank[i - 1];
+        }
+
+        // divide the matrix
+        assemble_local_matrix(rank, size);
+        assemble_local_F(rank, size);
 
         double error;
-        for(int it = 0; it < it_max; ++it){
+        int it = 0;
+        int converged_res = 0;
+        do{
                 error = parallel_iter(rank, size);
-                if (sqrt(h*error) < tol) {
-                    break;
-                }
-        }
+                int res_k_true = (error < tol) ? 1 : 0;
+                MPI_Allreduce(&res_k_true, &converged_res, 1, MPI_INT, MPI_PROD, MPI_COMM_WORLD); //if all the processes have converged, the product will be 1 --> we stop
+                it++;
+        }while(it < it_max and !converged_res);
 
-        assemble_matrix(rank);
+        assemble_matrix(rank, size);
         
         if (rank == 0)
-            postprocess("approx.vtk", U, n -1 , n - 1, h, h);
+            postprocess("approx.vtk", U, n - 1 , n - 1, h, h);
 
         MPI_Finalize();
 
@@ -107,23 +122,61 @@ void LaplaceSolver::postprocess(const std::string& filename,
         generateVTKFile(filename, U, nx, ny, dx, dy);
 }
 
-void LaplaceSolver::assemble_matrix(int rank){
-        int start_pos = (rank == 0) ? 1 : rank * rows_per_proc;
+void LaplaceSolver::assemble_local_matrix(int rank, int size){
+    // allocate memory for local_U
+    if (rank == 0 or rank == size - 1)
+        local_U = Eigen::MatrixXd::Zero(rows_per_rank[rank] + 1, n);
+    else
+        local_U = Eigen::MatrixXd::Zero(rows_per_rank[rank] + 2, n);
+}
 
-        std::vector<double> U_flat(rows_per_proc * n);
-        for(int i = 0; i < rows_per_proc; i++) {
+void LaplaceSolver::assemble_local_F(int rank, int size){
+    // allocate memory for local_F
+    if (rank == 0 or rank == size - 1)
+        local_F = Eigen::MatrixXd::Zero(rows_per_rank[rank] + 1, n);
+    else
+        local_F = Eigen::MatrixXd::Zero(rows_per_rank[rank] + 2, n);
+
+    for(int i = 1; i < local_F.rows() - 1; i++) {
+        for(int j = 1; j < n - 1; j++) {
+            if(rank == 0){
+                local_F(i, j) = f((real_start_pos[rank] + i) * h, j * h);
+            }
+            else{
+                local_F(i, j) = f((real_start_pos[rank] + i - 1) * h, j * h);
+            }
+
+        }
+    }
+}
+
+void LaplaceSolver::assemble_matrix(int rank, int size){
+        int start_pos = (rank == 0) ? 0 : 1;
+        int end_pos = (rank == size - 1) ? local_U.rows() : local_U.rows() - 1;
+
+        std::vector<double> U_flat(rows_per_rank[rank] * n);
+        for(int i = start_pos; i < end_pos; i++) {
             for(int j = 0; j < n; j++) {
-                U_flat[i * n + j] = U(i + start_pos, j);
+                U_flat[(i - start_pos) * n + j] = local_U(i, j);
             }
         }
 
         std::vector<double> U_final_flat;
+        std::vector<int> recvcounts;
+        std::vector<int> displs;
 
         if (rank == 0) {
             U_final_flat.resize(n * n);
+            recvcounts.resize(size);
+            displs.resize(size);
+            for (int i = 0; i < size; i++) {
+                recvcounts[i] = rows_per_rank[i] * n;
+                displs[i] = (i > 0) ? displs[i - 1] + rows_per_rank[i - 1] * n: 0;
+                //displs[i] = (i > 0) ? (displs[i - 1] + recvcounts[i - 1]) : 0;
+            }
         }
 
-        MPI_Gather(U_flat.data(), rows_per_proc * n, MPI_DOUBLE, U_final_flat.data(), rows_per_proc * n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Gatherv(U_flat.data(), rows_per_rank[rank] * n, MPI_DOUBLE, U_final_flat.data(), recvcounts.data(), displs.data(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
         if (rank == 0) {
             for (int i = 0; i < n; i++) {

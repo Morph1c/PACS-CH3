@@ -14,19 +14,29 @@ namespace parallel_solver{
 class LaplaceSolver{
 private:
     int n;
-    int it_max = 1000;
+    int it_max = 10000;
     double tol;
     double h;
     int rows_per_proc;
     std::function<double(double, double)> f;
+    std::function<double(double, double)> u_ex_fun;
+
+    std::vector<int> rows_per_rank;
+    std::vector<int> real_start_pos;
+
 
     //std::vector<std::vector<double>> U;
     //std::vector<std::vector<double>> U_exact;
 
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U;
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> local_U;
+    Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> local_F;
+
+    
 
 public:
-    LaplaceSolver(int n, double tol, std::function<double(double, double)> f) : n(n), tol(tol), f(f) {
+    LaplaceSolver(int n, double tol, std::function<double(double, double)> f, std::function<double(double, double)> _u_ex_fun) 
+    : n(n), tol(tol), f(f), u_ex_fun(_u_ex_fun){
         //U = std::vector<std::vector<double>>(n, std::vector<double>(n, 0.0));
         //U_exact = std::vector<std::vector<double>>(n, std::vector<double>(n, 0.0));
         U = Eigen::MatrixXd::Zero(n, n);
@@ -34,10 +44,12 @@ public:
     }
 
     double parallel_iter(int rank, int size);
-    double local_solver_iter(int start_pos, int end_pos);
+    double local_solver_iter(int rank);
     void solve(int argc, char** argv);
     void postprocess(const std::string& filename, const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>& U, int nx, int ny, double dx, double dy);
-    void assemble_matrix(int rank);
+    void assemble_local_matrix(int rank, int size);
+    void assemble_local_F(int rank, int size);
+    void assemble_matrix(int rank, int size);
 };
 
 }
