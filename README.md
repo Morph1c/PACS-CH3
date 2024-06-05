@@ -25,3 +25,12 @@ Then run the code using p processors and n grid points:
 ```shell
 mpirun -np <p> ./test n
 ```
+If you want to plot the execution time run:
+```shell
+python3 plot_times.py
+```
+Then look at plots folder for:
+-Execution times plot
+-Approximated solution in .vtk file
+-Error filed in .vtk
+
