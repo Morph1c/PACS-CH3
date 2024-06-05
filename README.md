@@ -30,7 +30,8 @@ If you want to plot the execution time run:
 python3 plot_times.py
 ```
 Then look at plots folder for:
--Execution times plot
--Approximated solution in .vtk file
--Error filed in .vtk
+
+- Execution times plot
+- Approximated solution in .vtk file
+- Error filed in .vtk
 
