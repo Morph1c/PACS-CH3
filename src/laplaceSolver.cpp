@@ -17,6 +17,8 @@ double LaplaceSolver::local_solver_iter(int rank){
                 norm += (local_U(i, j) - temp) * (local_U(i, j) - temp);
             }
     }
+
+
     
     return sqrt(h*norm);
 }
@@ -70,11 +72,10 @@ double LaplaceSolver::parallel_iter(int rank, int size){
 
 }
 
-void LaplaceSolver::solve(int argc, char** argv) {
-        // The code for solving the problem goes here
-         // Set boundary conditions
-        MPI_Init(&argc, &argv);
-
+void LaplaceSolver::solve(){
+        // I decide to inizialie the MPI communication in the main function
+        // so that i can test multiple solvers in the same main function        
+        auto start = std::chrono::high_resolution_clock::now();
 
         int size, rank;
         MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -109,11 +110,13 @@ void LaplaceSolver::solve(int argc, char** argv) {
 
         assemble_matrix(rank, size);
         
-        if (rank == 0)
-            postprocess("approx.vtk", U, n - 1 , n - 1, h, h);
+        if (rank == 0){
+            postprocess("../plots/approx.vtk", U, n - 1 , n - 1, h, h);
+            postprocess("../plots/error.vtk", Error_field, n - 1, n - 1, h, h);
+        }
 
-        MPI_Finalize();
-
+        auto end = std::chrono::high_resolution_clock::now();
+        diff = end - start;
 }
 
 void LaplaceSolver::postprocess(const std::string& filename, 
@@ -128,6 +131,9 @@ void LaplaceSolver::assemble_local_matrix(int rank, int size){
         local_U = Eigen::MatrixXd::Zero(rows_per_rank[rank] + 1, n);
     else
         local_U = Eigen::MatrixXd::Zero(rows_per_rank[rank] + 2, n);
+    
+    // set the boundary conditions
+    boundary_conditions(rank, size);
 }
 
 void LaplaceSolver::assemble_local_F(int rank, int size){
@@ -179,12 +185,41 @@ void LaplaceSolver::assemble_matrix(int rank, int size){
         MPI_Gatherv(U_flat.data(), rows_per_rank[rank] * n, MPI_DOUBLE, U_final_flat.data(), recvcounts.data(), displs.data(), MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
         if (rank == 0) {
+
+           // #pragma omp parallel for collapse(2)
             for (int i = 0; i < n; i++) {
                 for (int j = 0; j < n; j++) {
                     U(i, j) = U_final_flat[i * n + j];
+                    Error_field(i, j) = U(i, j) - u_ex_fun(i * h, j * h);
                 }
             }
         }
+}
+
+void LaplaceSolver::boundary_conditions(int rank, int size){
+    // set val to get homogenous Dirichlet boundary conditions with given constant
+    // easly generalized to non-constant values
+    double val = 0;
+    if (rank == 0){
+        for (int i = 0; i < n; i++){
+            local_U(0, i) = val;
+        }
+    }
+    else if (rank == size - 1){
+        for (int i = 0; i < n; i++){
+            local_U(local_U.rows() - 1, i) = val;
+        }
+    }
+
+    for(int i = 1; i < local_U.rows() - 1; i++){
+            local_U(i, 0) = val;
+            local_U(i, n - 1) = val;
+    }
+    
+}
+
+double LaplaceSolver::get_execution_time(){
+    return diff.count();
 }
 
 }
