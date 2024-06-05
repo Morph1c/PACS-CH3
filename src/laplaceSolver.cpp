@@ -6,13 +6,15 @@ namespace parallel_solver{
 
 double LaplaceSolver::local_solver_iter(int rank){
     double norm = 0.0;
-    #pragma omp parallel for reduction(+:norm) collapse(2)
+    double temp = 0.0;
+    // depending on the architecture this directive can be slow a lot the execution
+    #pragma omp parallel for reduction(+:norm) shared(local_U, temp) collapse(2)
     for (int i = 1; i < local_U.rows() - 1; ++i) {
              // every rank modifies the first row, except the first rank
                                               // since in that case are boundary conditions
                                               // moreover each rank doesn't modify the last row
             for (int j = 1; j < n - 1; ++j) {
-                double temp = local_U(i, j);
+                temp = local_U(i, j);
                 local_U(i, j) = 0.25 * (local_U(i-1, j) + local_U(i+1, j) + local_U(i, j-1) + local_U(i, j+1) + h*h*local_F(i, j));
                 norm += (local_U(i, j) - temp) * (local_U(i, j) - temp);
             }
@@ -186,7 +188,6 @@ void LaplaceSolver::assemble_matrix(int rank, int size){
 
         if (rank == 0) {
 
-           // #pragma omp parallel for collapse(2)
             for (int i = 0; i < n; i++) {
                 for (int j = 0; j < n; j++) {
                     U(i, j) = U_final_flat[i * n + j];
