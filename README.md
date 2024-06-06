@@ -1,6 +1,6 @@
 # Laplace Matrix-Free Parallel Solver
 
-This project implements a matrix-free parallel solver for the Laplace equation using the finite difference method. The solver is implemented in C++ and uses the Eigen library for matrix operations and OpenMP for parallelization.
+This project implements a matrix-free parallel solver for the Laplace equation using the finite difference method. The solver is implemented in C++ and uses the Eigen library for matrix operations and MPI for parallelization and openMP directive for hybrid parallelization.
 
 ## Features
 
