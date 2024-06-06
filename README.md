@@ -35,3 +35,6 @@ Then look at plots folder for:
 - Approximated solution in .vtk file
 - Error filed in .vtk
 
+## Performance result
+![execution_times](https://github.com/Morph1c/PACS-CH3/assets/56799376/cd3567e0-6dba-436c-8d74-9534dabac8be)
+
