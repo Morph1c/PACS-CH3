@@ -15,9 +15,14 @@ git clone git@github.com:Morph1c/PACS-CH2.git
 ```
 Then go to the src directory
 ```shell
-cd src
+cd test
 ```
-run the make:
+run the test by simply:
+```shell
+chmod +x run_test.sh
+./run_test.sh <n> 
+```
+where n are the number of rank which you want to test, this it will generate you a performance plot in /plots. While if you want to directly test by your self with mpirun then run the make:
 ```shell
 make 
 ```
