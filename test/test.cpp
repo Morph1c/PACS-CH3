@@ -20,7 +20,6 @@ int main(int argc, char** argv) {
 
     std::ofstream file("../plots/times.txt");
     for (int k = 4; k <= 8; k++){
-        //auto start = std::chrono::high_resolution_clock::now();
         int n = pow(2, k);
         LaplaceSolver solver(n, tol, f, g, u_ex_fun);
         solver.solve();
