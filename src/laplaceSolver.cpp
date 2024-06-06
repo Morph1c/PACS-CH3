@@ -8,7 +8,7 @@ double LaplaceSolver::local_solver_iter(int rank){
     double norm = 0.0;
     double temp = 0.0;
     // depending on the architecture this directive can be slow a lot the execution
-    //#pragma omp parallel for reduction(+:norm) shared(local_U, temp) collapse(2)
+    #pragma omp parallel for reduction(+:norm) shared(local_U, temp) collapse(2)
     for (int i = 1; i < local_U.rows() - 1; ++i) {
              // every rank modifies the first row, except the first rank
                                               // since in that case are boundary conditions

@@ -13,3 +13,6 @@ mpirun -np $1 ./test
 
 # Run the Python script
 python3 plot_times.py
+
+#clean after execution
+make clean
