@@ -8,7 +8,7 @@ double LaplaceSolver::local_solver_iter(int rank){
     double norm = 0.0;
     double temp = 0.0;
     // depending on the architecture this directive can be slow a lot the execution
-    #pragma omp parallel for reduction(+:norm) shared(local_U, temp) collapse(2)
+    //#pragma omp parallel for reduction(+:norm) shared(local_U, temp) collapse(2)
     for (int i = 1; i < local_U.rows() - 1; ++i) {
              // every rank modifies the first row, except the first rank
                                               // since in that case are boundary conditions
@@ -113,6 +113,12 @@ void LaplaceSolver::solve(){
         assemble_matrix(rank, size);
         
         if (rank == 0){
+            if(it >= it_max){
+                std::cout << "The solver did not converge in " << it << " iterations" << std::endl;
+            }
+            else{
+                std::cout << "The solver converged in " << it << " iterations" << std::endl;
+            }
             postprocess("../plots/approx.vtk", U, n - 1 , n - 1, h, h);
             postprocess("../plots/error.vtk", Error_field, n - 1, n - 1, h, h);
         }
@@ -200,21 +206,20 @@ void LaplaceSolver::assemble_matrix(int rank, int size){
 void LaplaceSolver::boundary_conditions(int rank, int size){
     // set val to get homogenous Dirichlet boundary conditions with given constant
     // easly generalized to non-constant values
-    double val = 0;
     if (rank == 0){
         for (int i = 0; i < n; i++){
-            local_U(0, i) = val;
+            local_U(0, i) = g(0, i*h);
         }
     }
     else if (rank == size - 1){
         for (int i = 0; i < n; i++){
-            local_U(local_U.rows() - 1, i) = val;
+            local_U(local_U.rows() - 1, i) = g(1, i*h); // considering [0, 1]^2 domain
         }
     }
 
     for(int i = 1; i < local_U.rows() - 1; i++){
-            local_U(i, 0) = val;
-            local_U(i, n - 1) = val;
+            local_U(i, 0) = g((real_start_pos[rank] + i - 1) * h, 0);
+            local_U(i, n - 1) = g((real_start_pos[rank] + i - 1) * h, 1); // consider [0, 1]^2 domain
     }
     
 }

@@ -16,12 +16,13 @@ namespace parallel_solver{
 class LaplaceSolver{
 private:
     int n;
-    int it_max = 10000;
+    int it_max = 100000;
     double tol;
     double h;
     std::chrono::duration<double> diff;
     int rows_per_proc;
     std::function<double(double, double)> f;
+    std::function<double(double, double)> g;
     std::function<double(double, double)> u_ex_fun;
 
     std::vector<int> rows_per_rank;
@@ -42,8 +43,9 @@ private:
     
 
 public:
-    LaplaceSolver(int n, double tol, std::function<double(double, double)> f, std::function<double(double, double)> _u_ex_fun) 
-    : n(n), tol(tol), f(f), u_ex_fun(_u_ex_fun){
+    LaplaceSolver(int n, double tol, std::function<double(double, double)> f, std::function<double(double, double)> g_data,
+ std::function<double(double, double)> _u_ex_fun) 
+    : n(n), tol(tol), f(f), g(g_data), u_ex_fun(_u_ex_fun){
         //U = std::vector<std::vector<double>>(n, std::vector<double>(n, 0.0));
         //U_exact = std::vector<std::vector<double>>(n, std::vector<double>(n, 0.0));
         U = Eigen::MatrixXd::Zero(n, n);

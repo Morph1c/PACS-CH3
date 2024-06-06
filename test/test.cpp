@@ -13,6 +13,7 @@ int main(int argc, char** argv) {
 
     double tol = 1e-5;
     auto f = [](double x, double y) { return 8 * M_PI * M_PI * sin(2 * M_PI * x) * sin(2 * M_PI * y); };
+    auto g = [](double x, double y) { return 0 ;};
     auto u_ex_fun = [](double x, double y) { return sin(2 * M_PI * x) * sin(2 * M_PI * y); };
     std::vector<double> times;
     std::vector<double> ns;
@@ -21,7 +22,7 @@ int main(int argc, char** argv) {
     for (int k = 4; k <= 8; k++){
         //auto start = std::chrono::high_resolution_clock::now();
         int n = pow(2, k);
-        LaplaceSolver solver(n, tol, f, u_ex_fun);
+        LaplaceSolver solver(n, tol, f, g, u_ex_fun);
         solver.solve();
 
         double local_time = solver.get_execution_time();
