@@ -24,6 +24,7 @@ private:
     std::function<double(double, double)> f;
     std::function<double(double, double)> g;
     std::function<double(double, double)> u_ex_fun;
+    bool multiprocess;
 
     std::vector<int> rows_per_rank;
     std::vector<int> real_start_pos;
@@ -40,8 +41,8 @@ private:
 
 public:
     LaplaceSolver(int n, double tol, std::function<double(double, double)> f, std::function<double(double, double)> g_data,
- std::function<double(double, double)> _u_ex_fun) 
-    : n(n), tol(tol), f(f), g(g_data), u_ex_fun(_u_ex_fun){
+ std::function<double(double, double)> _u_ex_fun, bool multiprocess) 
+    : n(n), tol(tol), f(f), g(g_data), u_ex_fun(_u_ex_fun), multiprocess(multiprocess){
         U = Eigen::MatrixXd::Zero(n, n);
         Error_field = Eigen::MatrixXd::Zero(n, n);
         h = 1.0 / (n - 1);

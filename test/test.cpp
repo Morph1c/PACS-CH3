@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     std::ofstream file("../plots/times.txt");
     for (int k = 4; k <= 8; k++){
         int n = pow(2, k);
-        LaplaceSolver solver(n, tol, f, g, u_ex_fun);
+        LaplaceSolver solver(n, tol, f, g, u_ex_fun, false);
         solver.solve();
 
         double local_time = solver.get_execution_time();
