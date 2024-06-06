@@ -1,4 +1,4 @@
-#include "../include/laplaceSolver.hpp"
+#include "../src/laplaceSolver.hpp"
 #include "../include/writeVTK.hpp"
 
 

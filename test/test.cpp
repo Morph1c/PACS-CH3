@@ -2,7 +2,7 @@
 #include <chrono>
 #include <cmath>
 #include <fstream>
-#include "../include/laplaceSolver.hpp"
+#include "../src/laplaceSolver.hpp"
 
 
 
