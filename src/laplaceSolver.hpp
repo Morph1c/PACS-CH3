@@ -28,10 +28,6 @@ private:
     std::vector<int> rows_per_rank;
     std::vector<int> real_start_pos;
 
-
-    //std::vector<std::vector<double>> U;
-    //std::vector<std::vector<double>> U_exact;
-
     // used for postprocessing only from rank 0
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> U;
     Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> Error_field;
