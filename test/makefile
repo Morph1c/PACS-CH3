@@ -1,6 +1,8 @@
 CXX       = mpic++
 CXXFLAGS ?= -std=c++17
-CPPFLAGS ?= -fopenmp -O3 -Wall -pedantic -Iinclude -I "/u/sw/toolchains/gcc-glibc/11.2.0/pkgs/eigen/3.3.9/include/eigen3" 
+# note if you create an include directory is to put all hpp files! You have left
+# lapaceSover.hpp in src.
+CPPFLAGS ?= -fopenmp -O3 -Wall -pedantic -Iinclude -I../include -I../src -I/usr/local/include/eigen3 
 
 LDFLAGS ?=
 LIBS    ?=
