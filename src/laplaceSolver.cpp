@@ -1,10 +1,25 @@
-#include "../src/laplaceSolver.hpp"
+
+// clang-format off
+
+//@note Dont put the full path in the include directive, just the name of the file
+// #include "laplaceSolver.cpp"
+// #include "writeVTK.cpp"  
+// and then you let the compiler to find where you store the header files
+// Moreover, header files are usually stored in the include directory
+#include "../src/laplaceSolver.hpp" //@note moreover this is the directori wher also this file lives!
 #include "../include/writeVTK.hpp"
 
 
 namespace parallel_solver{
 
 
+/* @note
+This is a really just a detail, but the methods solve() local_solver_iter and parallel)iter()  are "morally const" in the sense that 
+you expect to be able to run them also on const LaplaceSolver objects.
+They modify some private members of the class, but thos members are just implementation details, not really part
+of the class state. So, it is more appropriate to declare this methods as const, and the private variable used to cache 
+results as mutable.
+*/
 double LaplaceSolver::local_solver_iter(int rank){
     double norm = 0.0;
     double temp = 0.0;
@@ -15,6 +30,7 @@ double LaplaceSolver::local_solver_iter(int rank){
              // every rank modifies the first row, except the first rank
                                               // since in that case are boundary conditions
                                               // moreover each rank doesn't modify the last row
+            //@note  You have a data race here, because two threads may be reading and writing to the same memory location
             for (int j = 1; j < n - 1; ++j) {
                 temp = local_U(i, j);
                 local_U(i, j) = 0.25 * (local_U(i-1, j) + local_U(i+1, j) + local_U(i, j-1) + local_U(i, j+1) + h*h*local_F(i, j));
